@@ -11,7 +11,7 @@ $map_file = isset( $args[1] ) ? json_decode( file_get_contents( $args[1] ) ) : f
 try {
     if ( ( $handle = fopen( $file, 'r' ) ) !== false ) {
         $line = 0;
-        while ( ($data = fgetcsv( $handle, 1000, ',' ) ) !== false ) {
+        while ( ($data = fgetcsv( $handle, 1000, ',', '"', '\\' ) ) !== false ) {
             // Read the labels and skip.
             if ( 0 === $line++ ) {
                 $headers = $data;

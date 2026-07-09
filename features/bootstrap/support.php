@@ -143,7 +143,12 @@ function checkThatJsonStringContainsJsonString( $actualJson, $expectedJson ) {
  * @return bool     Whether $actualCSV contains $expectedCSV
  */
 function checkThatCsvStringContainsValues( $actualCSV, $expectedCSV ) {
-	$actualCSV = array_map( 'str_getcsv', explode( PHP_EOL, $actualCSV ) );
+	$actualCSV = array_map(
+		function ( $line ) {
+			return str_getcsv( $line, ',', '"', '\\' );
+		},
+		explode( PHP_EOL, $actualCSV )
+	);
 
 	if ( empty( $actualCSV ) )
 		return false;

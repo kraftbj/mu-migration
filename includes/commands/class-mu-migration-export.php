@@ -5,7 +5,6 @@
 namespace TenUp\MU_Migration\Commands;
 
 use TenUp\MU_Migration\Helpers;
-use Alchemy\Zippy\Zippy;
 
 class ExportCommand extends MUMigrationBase {
 
@@ -341,14 +340,14 @@ class ExportCommand extends MUMigrationBase {
 		/*
 		 * Now that we have all users meta keys, we can save everything into a csv file.
 		 */
-		fputcsv( $file_handler, $headers, $delimiter );
+		fputcsv( $file_handler, $headers, $delimiter, '"', '\\' );
 
 		foreach ( $user_data_arr as $user_data ) {
 			if ( count( $headers ) - count( $user_data ) > 0 ) {
 				$user_temp_data_arr = array_fill( 0, count( $headers ) - count( $user_data ), '' );
 				$user_data          = array_merge( array_values( $user_data ), $user_temp_data_arr );
 			}
-			fputcsv( $file_handler, $user_data, $delimiter );
+			fputcsv( $file_handler, $user_data, $delimiter, '"', '\\' );
 		}
 
 		fclose( $file_handler );

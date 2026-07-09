@@ -4,8 +4,6 @@
  */
 namespace TenUp\MU_Migration\Helpers;
 
-use Alchemy\Zippy\Zippy;
-
 /**
  * Checks if WooCommerce is active.
  *
@@ -276,29 +274,94 @@ function maybe_restore_current_blog() {
 /**
  * Extracts a zip file to the $dest_dir.
  *
- * @uses Zippy
+ * @uses ZipArchive
  *
  * @param string $filename
  * @param string $dest_dir
+ * @return bool True on success, false on failure.
  */
 function extract( $filename, $dest_dir ) {
-	$zippy = Zippy::load();
+	$zip = new \ZipArchive();
 
-	$site_package = $zippy->open( $filename );
+	if ( true !== $zip->open( $filename ) ) {
+		return false;
+	}
+
 	mkdir( $dest_dir );
-	$site_package->extract( $dest_dir );
+	$extracted = $zip->extractTo( $dest_dir );
+	$zip->close();
+
+	return $extracted;
 }
 
 /**
- * Creates a zip files with the provided files/folder to zip
+ * Creates a zip file with the provided files/folders.
  *
- * @param string $zip_files    The name of the zip file
- * @param array  $files_to_zip The files to include in the zip file
+ * $files_to_zip maps the in-archive name (key) to the source path on disk
+ * (value). File sources are added at that name; directory sources are added
+ * recursively under that name.
  *
- * @return void
+ * @uses ZipArchive
+ *
+ * @param string $zip_file     The name of the zip file to create.
+ * @param array  $files_to_zip The files/folders to include in the zip file.
+ *
+ * @return string The path to the created zip file.
+ * @throws \RuntimeException If the zip file can not be created.
  */
 function zip( $zip_file, $files_to_zip ) {
-	return Zippy::load()->create( $zip_file, $files_to_zip, true );
+	$zip = new \ZipArchive();
+
+	if ( true !== $zip->open( $zip_file, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
+		throw new \RuntimeException( sprintf( 'Unable to create zip file: %s', $zip_file ) );
+	}
+
+	foreach ( $files_to_zip as $local_name => $source ) {
+		// Support plain (non-associative) arrays of paths.
+		if ( is_int( $local_name ) ) {
+			$local_name = basename( $source );
+		}
+
+		if ( is_dir( $source ) ) {
+			add_folder_to_zip( $zip, $source, $local_name );
+		} elseif ( is_file( $source ) ) {
+			$zip->addFile( $source, $local_name );
+		}
+	}
+
+	$zip->close();
+
+	return $zip_file;
+}
+
+/**
+ * Recursively adds a folder and its contents to an open ZipArchive.
+ *
+ * @param \ZipArchive $zip         The open archive to add files to.
+ * @param string      $source_dir  The directory on disk to add.
+ * @param string      $archive_dir The path the directory should have inside the archive.
+ */
+function add_folder_to_zip( \ZipArchive $zip, $source_dir, $archive_dir ) {
+	$source_dir  = rtrim( $source_dir, '/' );
+	$archive_dir = rtrim( $archive_dir, '/' );
+
+	$zip->addEmptyDir( $archive_dir );
+
+	$files = new \RecursiveIteratorIterator(
+		new \RecursiveDirectoryIterator( $source_dir, \FilesystemIterator::SKIP_DOTS ),
+		\RecursiveIteratorIterator::SELF_FIRST
+	);
+
+	foreach ( $files as $file ) {
+		$relative_path = substr( $file->getPathname(), strlen( $source_dir ) + 1 );
+		$entry         = $archive_dir . '/' . $relative_path;
+
+		if ( $file->isDir() ) {
+			$zip->addEmptyDir( $entry );
+		} elseif ( $file->isFile() ) {
+			$zip->addFile( $file->getPathname(), $entry );
+		}
+	}
 }
 
 /**
