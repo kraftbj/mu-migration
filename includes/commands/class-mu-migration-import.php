@@ -6,7 +6,6 @@ namespace TenUp\MU_Migration\Commands;
 
 use TenUp\MU_Migration\Helpers;
 use WP_CLI;
-use Alchemy\Zippy\Zippy;
 
 class ImportCommand extends MUMigrationBase {
 
@@ -80,7 +79,7 @@ class ImportCommand extends MUMigrationBase {
 			Helpers\maybe_switch_to_blog( $this->assoc_args['blog_id'] );
 
 			wp_suspend_cache_addition( true );
-			while ( false !== ( $data = fgetcsv( $input_file_handler, 0, $delimiter ) ) ) {
+			while ( false !== ( $data = fgetcsv( $input_file_handler, 0, $delimiter, '"', '\\' ) ) ) {
 				// Read the labels and skip.
 				if ( 0 === $line++ ) {
 					$labels = $data;
@@ -644,13 +643,17 @@ class ImportCommand extends MUMigrationBase {
 			return false;
 		}
 
-		$blog_id = insert_blog( $parsed_url['host'], $parsed_url['path'], $site_id );
+		$site = wp_insert_site( array(
+			'domain'     => $parsed_url['host'],
+			'path'       => $parsed_url['path'],
+			'network_id' => $site_id,
+		) );
 
-		if ( ! $blog_id ) {
+		if ( is_wp_error( $site ) ) {
 			return false;
 		}
 
-		return $blog_id;
+		return (int) $site->id;
 	}
 
 	/**
